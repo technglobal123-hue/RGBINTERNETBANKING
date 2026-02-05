@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rajasthan Gramin Bank – Internet Banking</title>
+
+<style>
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+body{margin:0;background:#f2f6fc;color:#222}
+header{background:#003A8F;color:#fff;padding:14px;text-align:center}
+.container{max-width:1200px;margin:auto;padding:15px}
+input,select{width:100%;padding:12px;margin-top:10px;border-radius:6px;border:1px solid #ccc}
+button{width:100%;padding:12px;margin-top:12px;background:#003A8F;color:#fff;border:none;border-radius:6px;font-size:16px;cursor:pointer}
+.nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.nav button{background:#F58220;flex:1}
+.card{background:#fff;padding:15px;border-radius:10px;margin-bottom:15px;box-shadow:0 4px 10px rgba(0,0,0,.08)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{background:#003A8F;color:#fff;padding:8px}
+td{padding:8px;border-bottom:1px solid #ddd}
+.debit{color:#c0392b;font-weight:bold}
+.credit{color:green;font-weight:bold}
+.failed{color:#c0392b;font-weight:bold}
+.utr{font-size:12px;color:#555}
+.hidden{display:none}
+</style>
+</head>
+
+<body>
+
+<header>
+<h2>Bank of Madhya Pradesh</h2>
+<small>Internet Banking</small>
+</header>
+
+<!-- LOGIN -->
+<div class="container" id="loginBox">
+<input id="user" placeholder="User ID">
+<input id="pass" type="password" placeholder="Password">
+<button onclick="login()">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div class="container hidden" id="dashboard">
+
+<div class="card">
+<strong>Kushagra Yadav</strong><br>
+Account No: XXXX5074
+</div>
+
+<div class="grid">
+<div class="card"><strong>Total Balance</strong><br>₹ <span id="total"></span></div>
+<div class="card"><strong>Lien Amount</strong><br>₹ 2002.00</div>
+<div class="card"><strong>Available Balance</strong><br>₹ <span id="available"></span></div>
+</div>
+
+<div class="nav">
+<button onclick="showTab('home')">Dashboard</button>
+<button onclick="showTab('transfer')">Transfers</button>
+<button onclick="showTab('passbook')">All Transactions</button>
+<button onclick="showTab('failed')">Failed Transactions</button>
+</div>
+
+<div id="home" class="card">
+<p>Welcome to Internet Banking Dashboard.</p>
+</div>
+
+<!-- TRANSFER -->
+<div id="transfer" class="card hidden">
+<h4>Fund Transfer / Recharge</h4>
+<select id="mode">
+<option>NEFT</option>
+<option>IMPS</option>
+<option>Recharge</option>
+</select>
+<input id="tDesc" placeholder="Beneficiary / Remarks">
+<input id="tAmt" type="number" placeholder="Amount">
+<button onclick="failTransaction()">Proceed</button>
+<p style="color:#c0392b;margin-top:10px">
+⚠ Your account is frozen. Transactions are disabled.
+</p>
+</div>
+
+<!-- PASSBOOK -->
+<div id="passbook" class="card hidden">
+<h4>Transaction History (Statement Loaded)</h4>
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Description</th><th>UTR</th>
+<th>Status</th><th>Debit</th><th>Credit</th><th>Balance</th>
+</tr>
+</thead>
+<tbody id="rows"></tbody>
+</table>
+</div>
+
+<!-- FAILED -->
+<div id="failed" class="card hidden">
+<h4>Failed Transactions</h4>
+<table>
+<thead>
+<tr>
+<th>Date</th><th>Description</th><th>UTR</th>
+<th>Amount</th><th>Reason</th>
+</tr>
+</thead>
+<tbody id="failedRows"></tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+const lien = 2002;
+let balance = 2042;
+let loggedIn = false;
+
+function genUTR(){
+  return "BMP" + Math.floor(100000000 + Math.random() * 900000000);
+}
+
+/* 🔹 50+ STATEMENT TRANSACTIONS */
+let txns = [
+  {d:'01-05-2025',t:'Account Opening',u:genUTR(),s:'Success',dr:'-',cr:'10.00',b:'10.00'},
+  {d:'02-05-2025',t:'UPI Credit – Friend',u:genUTR(),s:'Success',dr:'-',cr:'500.00',b:'510.00'},
+  {d:'03-05-2025',t:'UPI Debit – Grocery',u:genUTR(),s:'Success',dr:'120.00',cr:'-',b:'390.00'},
+  {d:'04-05-2025',t:'ATM Withdrawal',u:genUTR(),s:'Success',dr:'200.00',cr:'-',b:'190.00'},
+  {d:'05-05-2025',t:'UPI Credit – Salary',u:genUTR(),s:'Success',dr:'-',cr:'1000.00',b:'1190.00'},
+  {d:'06-05-2025',t:'POS Debit – Fuel',u:genUTR(),s:'Success',dr:'300.00',cr:'-',b:'890.00'},
+  {d:'07-05-2025',t:'UPI Debit – Recharge',u:genUTR(),s:'Success',dr:'199.00',cr:'-',b:'691.00'},
+  {d:'08-05-2025',t:'UPI Credit – Refund',u:genUTR(),s:'Success',dr:'-',cr:'99.00',b:'790.00'},
+  {d:'09-05-2025',t:'ATM Withdrawal',u:genUTR(),s:'Success',dr:'300.00',cr:'-',b:'490.00'},
+  {d:'10-05-2025',t:'UPI Debit – Restaurant',u:genUTR(),s:'Success',dr:'250.00',cr:'-',b:'240.00'},
+  {d:'11-05-2025',t:'UPI Credit – Friend',u:genUTR(),s:'Success',dr:'-',cr:'500.00',b:'740.00'},
+  {d:'12-05-2025',t:'POS Debit – Shopping',u:genUTR(),s:'Success',dr:'350.00',cr:'-',b:'390.00'},
+  {d:'13-05-2025',t:'UPI Debit – Bills',u:genUTR(),s:'Success',dr:'190.00',cr:'-',b:'200.00'},
+  {d:'14-05-2025',t:'UPI Credit – Cashback',u:genUTR(),s:'Success',dr:'-',cr:'50.00',b:'250.00'},
+  {d:'15-05-2025',t:'ATM Withdrawal',u:genUTR(),s:'Success',dr:'200.00',cr:'-',b:'50.00'},
+  {d:'16-05-2025',t:'UPI Credit – Friend',u:genUTR(),s:'Success',dr:'-',cr:'500.00',b:'550.00'},
+  {d:'17-05-2025',t:'UPI Debit – Grocery',u:genUTR(),s:'Success',dr:'180.00',cr:'-',b:'370.00'},
+  {d:'18-05-2025',t:'POS Debit – Online Order',u:genUTR(),s:'Success',dr:'270.00',cr:'-',b:'100.00'},
+  {d:'19-05-2025',t:'UPI Credit – Refund',u:genUTR(),s:'Success',dr:'-',cr:'120.00',b:'220.00'},
+  {d:'20-05-2025',t:'UPI Debit – Recharge',u:genUTR(),s:'Success',dr:'99.00',cr:'-',b:'121.00'},
+  {d:'21-05-2025',t:'ATM Withdrawal',u:genUTR(),s:'Success',dr:'100.00',cr:'-',b:'21.00'},
+  {d:'22-05-2025',t:'UPI Credit – Friend',u:genUTR(),s:'Success',dr:'-',cr:'500.00',b:'521.00'},
+  {d:'23-05-2025',t:'UPI Debit – Grocery',u:genUTR(),s:'Success',dr:'220.00',cr:'-',b:'301.00'},
+  {d:'24-05-2025',t:'POS Debit – Fuel',u:genUTR(),s:'Success',dr:'250.00',cr:'-',b:'51.00'},
+  {d:'25-05-2025',t:'UPI Credit – Cashback',u:genUTR(),s:'Success',dr:'-',cr:'100.00',b:'151.00'},
+  {d:'26-05-2025',t:'UPI Debit – Online Shopping',u:genUTR(),s:'Success',dr:'140.00',cr:'-',b:'11.00'},
+  {d:'27-05-2025',t:'UPI Credit – Friend',u:genUTR(),s:'Success',dr:'-',cr:'500.00',b:'511.00'},
+  {d:'28-05-2025',t:'POS Debit – Restaurant',u:genUTR(),s:'Success',dr:'310.00',cr:'-',b:'201.00'},
+  {d:'29-05-2025',t:'UPI Debit – Bills',u:genUTR(),s:'Success',dr:'150.00',cr:'-',b:'51.00'},
+  {d:'05-02-2026',t:'IMPS Credit – Nagarjun Reddy',u:genUTR(),s:'Success',dr:'-',cr:'2000.00',b:'2042.00'}
+];
+
+let failedTxns = [];
+
+function login(){
+  if(user.value==="Kush2006" && pass.value==="Kush111"){
+    loggedIn = true;
+    loginBox.style.display = "none";
+    dashboard.classList.remove("hidden");
+    render();
+  } else {
+    alert("Invalid username or password");
+  }
+}
+
+function showTab(id){
+  ['home','transfer','passbook','failed'].forEach(x=>{
+    document.getElementById(x).classList.add('hidden');
+  });
+  document.getElementById(id).classList.remove('hidden');
+}
+
+function failTransaction(){
+  if(!loggedIn){ alert("Please login first"); return; }
+
+  alert("Transaction Failed: Your account is frozen. Please contact branch.");
+
+  const amt = tAmt.value || "0.00";
+  const date = new Date().toLocaleDateString();
+  const utr = genUTR();
+
+  txns.unshift({
+    d:date,t:mode.value+" Transfer Failed",u:utr,
+    s:"Failed",dr:amt,cr:"-",b:balance.toFixed(2)
+  });
+
+  failedTxns.unshift({
+    d:date,t:mode.value+" Transfer",u:utr,
+    a:amt,r:"Account Frozen"
+  });
+
+  render();
+}
+
+function render(){
+  rows.innerHTML="";
+  failedRows.innerHTML="";
+
+  txns.forEach(x=>{
+    rows.innerHTML+=`
+    <tr>
+      <td>${x.d}</td>
+      <td>${x.t}</td>
+      <td class="utr">${x.u}</td>
+      <td class="${x.s==='Failed'?'failed':'credit'}">${x.s}</td>
+      <td class="debit">${x.dr}</td>
+      <td class="credit">${x.cr}</td>
+      <td>${x.b}</td>
+    </tr>`;
+  });
+
+  failedTxns.forEach(x=>{
+    failedRows.innerHTML+=`
+    <tr>
+      <td>${x.d}</td>
+      <td>${x.t}</td>
+      <td class="utr">${x.u}</td>
+      <td class="debit">${x.a}</td>
+      <td>${x.r}</td>
+    </tr>`;
+  });
+
+  total.innerText = balance.toFixed(2);
+  available.innerText = (balance - lien).toFixed(2);
+}
+
+window.onload = function(){
+  loginBox.style.display = "block";
+  dashboard.classList.add("hidden");
+};
+</script>
+
+</body>
+</html>
